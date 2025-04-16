@@ -205,21 +205,12 @@ int main(void)
             xfer_image.buffer = gfx_vbuffer;
             
             msd_ReadAsync(&xfer_palette);
-            if (msderr != MSD_SUCCESS) {
-                putstr("error queueing msd (palette)");
-                goto msd_error;
-            }
             msd_ReadAsync(&xfer_image);
-            if (msderr != MSD_SUCCESS) {
-                putstr("error queueing msd (image)");
-                goto msd_error;
-            }
 
             while (!copy_palette || !render) {
                 usb_HandleEvents();
             }
 
-            while (!os_GetCSC());
         }
 
         while (!os_GetCSC())
@@ -232,21 +223,12 @@ int main(void)
             xfer_image.buffer = gfx_vbuffer;
             
             msd_ReadAsync(&xfer_palette);
-            if (msderr != MSD_SUCCESS) {
-                putstr("error queueing msd (palette)");
-                goto msd_error;
-            }
             msd_ReadAsync(&xfer_image);
-            if (msderr != MSD_SUCCESS) {
-                putstr("error queueing msd (image)");
-                goto msd_error;
-            }
 
             while (!copy_palette || !render) {
                 usb_HandleEvents();
             }
 
-            //while (!os_GetCSC());
         }
             
         
