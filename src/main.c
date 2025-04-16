@@ -59,21 +59,12 @@ static usb_error_t handleUsbEvent(usb_event_t event, void *event_data,
 }
 
 void palette_callback(msd_error_t error, struct msd_transfer *xfer) {
-    if (error == MSD_SUCCESS) {
-        xfer->lba += 151;
-        *(bool*)xfer->userptr = true;
-    } else {
-        putstr("error reading palette");
-    }
+    xfer->lba += 151;
 }
 
 void image_callback(msd_error_t error, struct msd_transfer *xfer) {
-    if (error == MSD_SUCCESS) {
-        xfer->lba += 151;
-        *(bool*)xfer->userptr = true;
-    } else {
-        putstr("error reading image");
-    }
+    xfer->lba += 151;
+    *(bool*)xfer->userptr = true;
 }
 
 int main(void)
@@ -172,58 +163,40 @@ int main(void)
         gfx_Begin();
         gfx_SwapDraw();
 
-        xfer_palette.buffer = palette;
-        
-        {
-            xfer_image.buffer = gfx_vbuffer;
+        //Load the first frame
+        xfer_palette.buffer = palette;     
+        xfer_image.buffer = gfx_vbuffer;
             
+        msd_ReadAsync(&xfer_palette);
+        msd_ReadAsync(&xfer_image);
+
+        while(!render){
+            usb_HandleEvents();
+        }
+
+        gfx_SetPalette(palette, 512, 0);
+
+        render = false;
+        
+        //Main Loop
+        while (!os_GetCSC()) {
+            gfx_SwapDraw();
+
+            xfer_image.buffer = gfx_vbuffer;
             msd_ReadAsync(&xfer_palette);
             msd_ReadAsync(&xfer_image);
 
-            while (!copy_palette) {
-                usb_HandleEvents();
-            }
+            gfx_Wait();
 
             gfx_SetPalette(palette, 512, 0);
 
-            while (!render) {
+            while(!render){
                 usb_HandleEvents();
             }
 
-            gfx_SwapDraw();
             render = false;
-            copy_palette = false;
-
-            xfer_image.buffer = gfx_vbuffer;
-            
-            msd_ReadAsync(&xfer_palette);
-            msd_ReadAsync(&xfer_image);
-
-            while (!copy_palette || !render) {
-                usb_HandleEvents();
-            }
-
+    
         }
-
-        while (!os_GetCSC())
-        {
-            gfx_SetPalette(palette, 512, 0);
-            gfx_SwapDraw();
-            render = false;
-            copy_palette = false;
-
-            xfer_image.buffer = gfx_vbuffer;
-            
-            msd_ReadAsync(&xfer_palette);
-            msd_ReadAsync(&xfer_image);
-
-            while (!copy_palette || !render) {
-                usb_HandleEvents();
-            }
-
-        }
-            
-        
         gfx_End();
     }
 
