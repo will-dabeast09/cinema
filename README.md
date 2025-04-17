@@ -42,7 +42,6 @@ Cinema is a video player application that allows you to watch videos on your TI-
 - **Version:** Current
 - **Framerate:** 3.5 FPS
 - **Color depth:** 256 colors per image
-- **Memory usage:** Approximately 6 KB
 
 ## Links
 
