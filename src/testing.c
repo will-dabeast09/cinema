@@ -62,11 +62,99 @@ static usb_error_t handleUsbEvent(usb_event_t event, void *event_data,
 
 void palette_callback(msd_error_t error, struct msd_transfer *xfer) {
     xfer->lba += 151;
+    if (error != MSD_SUCCESS) {
+        switch (error) {
+            case MSD_ERROR_INVALID_PARAM:
+                gfx_End();
+                putstr("invalid param (palette)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_USB_FAILED:
+                gfx_End();
+                putstr("usb failed (palette)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_SCSI_FAILED:
+                gfx_End();
+                putstr("scsi failed (palette)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_SCSI_CHECK_CONDITION:
+                gfx_End();
+                putstr("scsi check condition (palette)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_NOT_SUPPORTED:
+                gfx_End();
+                putstr("not supported (palette)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_INVALID_DEVICE:
+                gfx_End();
+                putstr("invalid device (palette)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_TIMEOUT:
+                gfx_End();
+                putstr("timeout (palette)");
+                while (!os_GetCSC());
+                break;
+            default:
+                gfx_End();
+                putstr("Unknown error.");
+                while (!os_GetCSC());
+                break;
+        }
+    }
 }
 
 void image_callback(msd_error_t error, struct msd_transfer *xfer) {
     xfer->lba += 151;
     *(bool*)xfer->userptr = true;
+    if (error != MSD_SUCCESS) {
+        switch (error) {
+            case MSD_ERROR_INVALID_PARAM:
+                gfx_End();
+                putstr("invalid param (image)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_USB_FAILED:
+                gfx_End();
+                putstr("usb failed (image)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_SCSI_FAILED:
+                gfx_End();
+                putstr("scsi failed (image)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_SCSI_CHECK_CONDITION:
+                gfx_End();
+                putstr("scsi check condition (image)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_NOT_SUPPORTED:
+                gfx_End();
+                putstr("not supported (image)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_INVALID_DEVICE:
+                gfx_End();
+                putstr("invalid device (image)");
+                while (!os_GetCSC());
+                break;
+            case MSD_ERROR_TIMEOUT:
+                gfx_End();
+                putstr("timeout (image)");
+                while (!os_GetCSC());
+                break;
+            default:
+                gfx_End();
+                putstr("Unknown error.");
+                while (!os_GetCSC());
+                break;
+    }
+}
 }
 
 int main(void)
