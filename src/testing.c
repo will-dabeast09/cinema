@@ -6,17 +6,19 @@ typedef struct global global_t;
 #include <graphx.h>
 #include <usbdrvce.h>
 
-#define USB_CUSTOM_INIT_FLAGS (USB_USE_OS_HEAP | USB_INIT_FLSZ_1024 | USB_INIT_ASST_0 | USB_INIT_EOF1_0 | USB_INIT_EOF2_0 | USB_INIT_UNKNOWN)
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
-
 #define MAX_PARTITIONS 32
 #define BLOCK_SIZE 512
+
+//Initialize the sprite buffers
+gfx_sprite_t *sprite_buffer_1;
+gfx_sprite_t *sprite_buffer_2;
+
 
 struct global
 {
@@ -61,7 +63,7 @@ static usb_error_t handleUsbEvent(usb_event_t event, void *event_data,
 }
 
 void palette_callback(msd_error_t error, struct msd_transfer *xfer) {
-    xfer->lba += 151;
+    xfer->lba += 31;
     if (error != MSD_SUCCESS) {
         switch (error) {
             case MSD_ERROR_INVALID_PARAM:
@@ -109,7 +111,7 @@ void palette_callback(msd_error_t error, struct msd_transfer *xfer) {
 }
 
 void image_callback(msd_error_t error, struct msd_transfer *xfer) {
-    xfer->lba += 151;
+    xfer->lba += 31;
     *(bool*)xfer->userptr = true;
     if (error != MSD_SUCCESS) {
         switch (error) {
@@ -159,7 +161,6 @@ void image_callback(msd_error_t error, struct msd_transfer *xfer) {
 
 int main(void)
 {
-    //variable definitions
         static char buffer[212];
         static global_t global;
         msd_transfer_t xfer_palette;
@@ -179,7 +180,7 @@ int main(void)
 
         xfer_image.msd = &global.msd;
         xfer_image.lba = 1;
-        xfer_image.count = 150;
+        xfer_image.count = 30;
         xfer_image.callback = image_callback;
         xfer_image.userptr = &render;
 
@@ -192,7 +193,7 @@ int main(void)
         {
             global.usb = NULL;
 
-            usberr = usb_Init(handleUsbEvent, &global, NULL, USB_CUSTOM_INIT_FLAGS);
+            usberr = usb_Init(handleUsbEvent, &global, NULL, USB_DEFAULT_INIT_FLAGS);
             if (usberr != USB_SUCCESS)
             {
                 putstr("usb init error.");
@@ -207,7 +208,7 @@ int main(void)
                 // break out if a key is pressed
                 if (os_GetCSC())
                 {
-                    putstr("exiting demo, press a key");
+                    putstr("exiting Cinema, press a key");
                     goto usb_error;
                 }
 
@@ -251,12 +252,18 @@ int main(void)
     //graphx
     {
         gfx_Begin();
+        gfx_FillScreen(0);
         gfx_SwapDraw();
+        gfx_FillScreen(0);
+
+        //Allocate memory for the sprites
+        sprite_buffer_1 = gfx_MallocSprite(160, 96);
+        sprite_buffer_2 = gfx_MallocSprite(160, 96);
 
         //Load the first frame
-        xfer_palette.buffer = palette;     
-        xfer_image.buffer = gfx_vbuffer;
-            
+        xfer_palette.buffer = palette;
+        xfer_image.buffer = sprite_buffer_1->data;
+        
         msderr = msd_ReadAsync(&xfer_palette);
         if (msderr != MSD_SUCCESS) {
             putstr("error queueing msd (palette)");
@@ -272,15 +279,19 @@ int main(void)
             usb_HandleEvents();
         }
 
+        gfx_ScaledSprite_NoClip(sprite_buffer_1, 0, 36, 2, 2);
+
+        gfx_Wait();
         gfx_SetPalette(palette, 512, 0);
+        gfx_SwapDraw();
+
+        
 
         render = false;
         
         //Main Loop
         while (!os_GetCSC()) {
-            gfx_SwapDraw();
 
-            xfer_image.buffer = gfx_vbuffer;
             msderr = msd_ReadAsync(&xfer_palette);
             if (msderr != MSD_SUCCESS) {
                 putstr("error queueing msd (palette)");
@@ -291,9 +302,11 @@ int main(void)
                 putstr("error queueing msd (image)");
                 goto msd_error;
             }
+            
+            gfx_ScaledSprite_NoClip(sprite_buffer_1, 0, 36, 2, 2);
 
             gfx_Wait();
-
+            gfx_SwapDraw();
             gfx_SetPalette(palette, 512, 0);
 
             while(!render){
