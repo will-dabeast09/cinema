@@ -1,20 +1,23 @@
 typedef struct global global_t;
 #define usb_callback_data_t global_t
 
-#include <usbdrvce.h>
 #include <msddrvce.h>
 #include <tice.h>
 #include <graphx.h>
+#include <usbdrvce.h>
 
 #include <stdio.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
-
 #define MAX_PARTITIONS 32
 #define BLOCK_SIZE 512
+
+//Initialize the sprite buffers
+gfx_sprite_t *sprite_buffer_1;
+gfx_sprite_t *sprite_buffer_2;
+
 
 struct global
 {
@@ -59,24 +62,81 @@ static usb_error_t handleUsbEvent(usb_event_t event, void *event_data,
 }
 
 void palette_callback(msd_error_t error, struct msd_transfer *xfer) {
-    xfer->lba += 151;
+    xfer->lba += 31;
+    if (error != MSD_SUCCESS) {
+        gfx_End();
+        switch (error) {
+            case MSD_ERROR_INVALID_PARAM:
+                putstr("invalid param (palette)");
+                break;
+            case MSD_ERROR_USB_FAILED:
+                putstr("usb failed (palette)");
+                break;
+            case MSD_ERROR_SCSI_FAILED:
+                putstr("scsi failed (palette)");
+                break;
+            case MSD_ERROR_SCSI_CHECK_CONDITION:
+                putstr("scsi check condition (palette)");
+                break;
+            case MSD_ERROR_NOT_SUPPORTED:
+                putstr("not supported (palette)");
+                break;
+            case MSD_ERROR_INVALID_DEVICE:
+                putstr("invalid device (palette)");
+                break;
+            case MSD_ERROR_TIMEOUT:
+                putstr("timeout (palette)");
+                break;
+            default:
+                putstr("Unknown error.");
+                break;
+        }
+    }
 }
 
 void image_callback(msd_error_t error, struct msd_transfer *xfer) {
-    xfer->lba += 151;
+    xfer->lba += 31;
     *(bool*)xfer->userptr = true;
+    if (error != MSD_SUCCESS) {
+        gfx_End();
+        switch (error) {
+            case MSD_ERROR_INVALID_PARAM:
+                putstr("invalid param (image)");
+                break;
+            case MSD_ERROR_USB_FAILED:
+                putstr("usb failed (image)");
+                break;
+            case MSD_ERROR_SCSI_FAILED:
+                putstr("scsi failed (image)");
+                break;
+            case MSD_ERROR_SCSI_CHECK_CONDITION:
+                putstr("scsi check condition (image)");
+                break;
+            case MSD_ERROR_NOT_SUPPORTED:
+                putstr("not supported (image)");
+                break;
+            case MSD_ERROR_INVALID_DEVICE:
+                putstr("invalid device (image)");
+                break;
+            case MSD_ERROR_TIMEOUT:
+                putstr("timeout (image)");
+                break;
+            default:
+                putstr("Unknown error.");
+                break;
+        }
+    }
 }
 
 int main(void)
 {
-    //variable definitions
         static char buffer[212];
         static global_t global;
+        uint16_t palette_buffer_1[256];
+        uint16_t palette_buffer_2[256];
+        bool render = false;
         msd_transfer_t xfer_palette;
         msd_transfer_t xfer_image;
-        uint16_t palette[256];
-        bool copy_palette = false;
-        bool render = false;
         msd_info_t msdinfo;
         usb_error_t usberr;
         msd_error_t msderr;
@@ -85,11 +145,10 @@ int main(void)
         xfer_palette.lba = 0;
         xfer_palette.count = 1;
         xfer_palette.callback = palette_callback;
-        xfer_palette.userptr = &copy_palette;
 
         xfer_image.msd = &global.msd;
         xfer_image.lba = 1;
-        xfer_image.count = 150;
+        xfer_image.count = 30;
         xfer_image.callback = image_callback;
         xfer_image.userptr = &render;
 
@@ -117,7 +176,7 @@ int main(void)
                 // break out if a key is pressed
                 if (os_GetCSC())
                 {
-                    putstr("exiting demo, press a key");
+                    putstr("exiting cinema, press a key");
                     goto usb_error;
                 }
 
@@ -161,41 +220,95 @@ int main(void)
     //graphx
     {
         gfx_Begin();
-        gfx_SwapDraw();
+        gfx_ZeroScreen();
+        gfx_SetDrawBuffer();
+        gfx_ZeroScreen();
+
+        //Allocate memory for the sprites
+        sprite_buffer_1 = gfx_MallocSprite(160, 96);
+        sprite_buffer_2 = gfx_MallocSprite(160, 96);
 
         //Load the first frame
-        xfer_palette.buffer = palette;     
-        xfer_image.buffer = gfx_vbuffer;
-            
-        msd_ReadAsync(&xfer_palette);
-        msd_ReadAsync(&xfer_image);
+        xfer_palette.buffer = palette_buffer_1;
+        xfer_image.buffer = &sprite_buffer_1->data;
+        
+        msderr = msd_ReadAsync(&xfer_palette);
+        if (msderr != MSD_SUCCESS) {
+            putstr("error queueing msd (palette)");
+            goto msd_error;
+        }
+        msderr = msd_ReadAsync(&xfer_image);
+        if (msderr != MSD_SUCCESS) {
+            putstr("error queueing msd (image)");
+            goto msd_error;
+        }
 
         while(!render){
             usb_HandleEvents();
         }
 
-        gfx_SetPalette(palette, 512, 0);
-
         render = false;
-        
+
         //Main Loop
         while (!os_GetCSC()) {
+            //set the buffers
+            gfx_SetDrawBuffer();
+            xfer_image.buffer = &sprite_buffer_2->data;
+            xfer_palette.buffer = palette_buffer_2;
+
+            //queue the async reads
+            msderr = msd_ReadAsync(&xfer_palette);
+            if (msderr != MSD_SUCCESS) {
+                putstr("error queueing msd (palette)");
+                goto msd_error;
+            }
+            msderr = msd_ReadAsync(&xfer_image);
+            if (msderr != MSD_SUCCESS) {
+                putstr("error queueing msd (image)");
+                goto msd_error;
+            }
+            
+            //display the image while async is reading
+            gfx_ScaledSprite_NoClip(sprite_buffer_1, 0, 24, 2, 2);
             gfx_SwapDraw();
-
-            xfer_image.buffer = gfx_vbuffer;
-            msd_ReadAsync(&xfer_palette);
-            msd_ReadAsync(&xfer_image);
-
             gfx_Wait();
+            gfx_SetPalette(palette_buffer_1, 512, 0);
 
-            gfx_SetPalette(palette, 512, 0);
-
+            //run the callbacks
             while(!render){
                 usb_HandleEvents();
             }
-
             render = false;
-    
+
+            //set to read to the other buffers (double buffering)
+            gfx_SetDrawBuffer();
+            xfer_image.buffer = &sprite_buffer_1->data;
+            xfer_palette.buffer = palette_buffer_1;
+
+            
+            msderr = msd_ReadAsync(&xfer_palette);
+            if (msderr != MSD_SUCCESS) {
+                putstr("error queueing msd (palette)");
+                goto msd_error;
+            }
+            msderr = msd_ReadAsync(&xfer_image);
+            if (msderr != MSD_SUCCESS) {
+                putstr("error queueing msd (image)");
+                goto msd_error;
+            }
+            
+            //display the image while async is reading
+            gfx_ScaledSprite_NoClip(sprite_buffer_2, 0, 24, 2, 2);
+            gfx_SwapDraw();
+            gfx_Wait();
+            gfx_SetPalette(palette_buffer_2, 512, 0);
+
+            //run the callbacks
+            while(!render){
+                usb_HandleEvents();
+            }
+            render = false;
+
         }
         gfx_End();
     }
@@ -209,6 +322,11 @@ int main(void)
 msd_error:
     // close the msd device
     msd_Close(&global.msd);
+    usb_Cleanup();
+
+    while (!os_GetCSC());
+    
+    return 0;
 
 usb_error:
     // cleanup usb
