@@ -17,7 +17,6 @@ Cinema is a video player application that allows you to watch videos on your TI-
 
 3. **Process the frames**
    - Run [FBin](https://github.com/will-dabeast09/fbin) to convert frames to the required format
-      - You'll need to edit line 21 to be: img = img.resize((160, 96), Image.Resampling.LANCZOS) if not using Windows
    - This will output a binary file ready for the calculator
 
 4. **Write to thumb drive**
