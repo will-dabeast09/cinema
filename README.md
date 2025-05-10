@@ -31,7 +31,8 @@ Cinema is a video player application that allows you to watch videos on your TI-
 
 1. Run CINEMA on your calculator
 2. Insert your prepared USB drive
-3. Video will begin playing automatically
+3. If you have run it before, press 0 to restart the video, and any other key to resume.
+3. Video will begin playing
 4. Press any key (except ON) to exit
 
 ## Technical Specifications
